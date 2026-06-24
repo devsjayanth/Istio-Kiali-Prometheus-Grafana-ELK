@@ -47,6 +47,9 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
 ```
 If the Grafana pod restarts during/after a reboot, manually imported UI dashboards are lost. 
 Fix: Provision them via Helm so they automatically recreate on pod restarts. Create a values.yaml:
+```
+nano values.yaml
+```
 ```yaml
 grafana:
   dashboards:
