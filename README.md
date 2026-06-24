@@ -45,6 +45,23 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
   --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
   --set grafana.service.type=ClusterIP
 ```
+If the Grafana pod restarts during/after a reboot, manually imported UI dashboards are lost. 
+Fix: Provision them via Helm so they automatically recreate on pod restarts. Create a values.yaml:
+```yaml
+grafana:
+  dashboards:
+    istio:
+      mesh: { gnetId: 7639, revision: 1, datasource: Prometheus }
+      performance: { gnetId: 11829, revision: 1, datasource: Prometheus }
+      service: { gnetId: 7636, revision: 1, datasource: Prometheus }
+      workload: { gnetId: 7630, revision: 1, datasource: Prometheus }
+```
+Then upgrade your release:
+```
+helm upgrade monitoring prometheus-community/kube-prometheus-stack -n monitoring -f values.yaml \
+  --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+  --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false
+```
 ```
 # Verify running
 kubectl get pod -n monitoring
