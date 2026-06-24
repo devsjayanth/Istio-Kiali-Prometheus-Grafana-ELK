@@ -29,7 +29,8 @@ istioctl install --set profile=default -y
 
 # Enable sidecar injection for app workloads
 kubectl label namespace default istio-injection=enabled
-
+```
+```
 # Verify ingress gateway is running
 kubectl get pod -n istio-system
 ```
@@ -44,7 +45,8 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
   --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
   --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
   --set grafana.service.type=ClusterIP
-
+```
+```
 # Verify running
 kubectl get pod -n monitoring
 ```
@@ -59,7 +61,8 @@ helm install kiali-server kiali/kiali-server -n istio-system \
   --set auth.strategy=anonymous \
   --set external_services.prometheus.url=http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090 \
   --set external_services.grafana.external_url=http://monitoring-grafana.monitoring.svc:80
-
+```
+```
 # Verify Kiali is running
 kubectl get pod -n istio-system
 ```
@@ -73,13 +76,16 @@ helm repo update
 # Elasticsearch (Security disabled for simple setup)
 helm install elasticsearch elastic/elasticsearch -n logging \
   --set replicas=1 --set xpack.security.enabled=false
-
+```
+```
 # Kibana
 helm install kibana elastic/kibana -n logging
-
+```
+```
 # Filebeat (Log shipper)
 helm install filebeat elastic/filebeat -n logging
-
+```
+```
 # Verify running
 kubectl get pod -n logging
 ```
