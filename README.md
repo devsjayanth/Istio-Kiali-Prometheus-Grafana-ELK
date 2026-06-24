@@ -87,12 +87,23 @@ kubectl get sc
 * If you have one (e.g., standard, gp2, managed-premium), note its name.
 * If you have none (common in bare-metal/local clusters), you must install a storage provisioner. For a quick local fix, install the local-path-provisioner:
 ```
-kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+helm install local-path local-path/local-path-provisioner \
+  --namespace local-path-storage --create-namespace \
+  --set storageClass.defaultClass=true \
+  --set nodePathMap[0].node=DEFAULT_PATH_FOR_NON_LISTED_NODES \
+  --set nodePathMap[0].paths='{/var/mnt/local-path}'
 ```
+Verify
 ```
-#Verify
 kubectl get sc
 ```
+```
+kubectl label --overwrite namespace local-path-storage \
+  pod-security.kubernetes.io/enforce=privileged \
+  pod-security.kubernetes.io/warn=privileged \
+  pod-security.kubernetes.io/audit=privileged
+```
+
 Elasticsearch
 ```
 # Elasticsearch (Security disabled for simple setup)
