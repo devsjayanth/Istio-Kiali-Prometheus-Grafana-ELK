@@ -1,4 +1,4 @@
-# Istio 1.22+, Kiali, Prometheus, Grafana, ELK- Setup
+# Istio 1.22+, Kiali, Prometheus, Grafana- Setup
 Here is the final, complete, and corrected guide, including the missing Helm installation step and refined metric configurations based on the latest official Istio documentation.
 
 ### Phase 1: Install CLI Tools
@@ -19,7 +19,6 @@ export PATH=$PWD/bin:$PATH
 ```bash
 kubectl create ns istio-system
 kubectl create ns monitoring
-kubectl create ns logging
 ```
 
 ### Phase 3: Install Istio Control Plane
@@ -67,75 +66,7 @@ helm install kiali-server kiali/kiali-server -n istio-system \
 kubectl get pod -n istio-system
 ```
 
-### Phase 6: Install ELK Stack
-```bash
-helm repo add elastic https://helm.elastic.co
-helm repo update
-```
-1. Allow privileged pods in the logging namespace
-```
-kubectl label --overwrite namespace logging \
-  pod-security.kubernetes.io/enforce=privileged \
-  pod-security.kubernetes.io/warn=privileged \
-  pod-security.kubernetes.io/audit=privileged
-```
-Define a StorageClass and tell the Helm chart to use it.
-First, check if you have any storage classes:
-```
-kubectl get sc
-```
-* If you have one (e.g., standard, gp2, managed-premium), note its name.
-* If you have none (common in bare-metal/local clusters), you must install a storage provisioner. For a quick local fix, install the local-path-provisioner:
-```
-# 1. Install Rancher storage provisioner
-curl -sO https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-
-# 2. Modify the default path to /var/mnt/local-path (required for Talos)
-sed -i 's|/opt/local-path-provisioner|/var/mnt/local-path|g' local-path-storage.yaml
-
-# 3. Apply the manifest
-kubectl apply -f local-path-storage.yaml
-
-```
-Verify Storage Class
-```
-kubectl get sc
-```
-Allow hostPath for the provisioner namespace
-```
-kubectl label --overwrite namespace local-path-storage \
-  pod-security.kubernetes.io/enforce=privileged \
-  pod-security.kubernetes.io/warn=privileged \
-  pod-security.kubernetes.io/audit=privileged
-```
-
-#### Elasticsearch
-* Elasticsearch (Security disabled for simple setup)
-* (Replace <YOUR_STORAGE_CLASS_NAME> with the name from kubectl get sc, or local-path if you installed the provisioner above).
-```
-
-helm install elasticsearch elastic/elasticsearch -n logging \
-  --set replicas=1 \
-  --set xpack.security.enabled=false \
-  --set sysctlInit.enabled=false \
-  --set volumeClaimTemplate.storageClassName="<YOUR_STORAGE_CLASS_NAME>"
-```
-#### Kibana
-```
-# Kibana
-helm install kibana elastic/kibana -n logging
-```
-#### Filebeat
-```
-# Filebeat (Log shipper)
-helm install filebeat elastic/filebeat -n logging
-```
-Verify running
-```
-kubectl get pod -n logging
-```
-
-### Phase 7: Connect Istio Metrics to External Prometheus
+### Phase 6: Connect Istio Metrics to External Prometheus
 *Note: The `PodMonitor` handles Envoy proxy metrics (including the ingress gateway), while the `ServiceMonitor` handles Istiod control plane metrics.*
 
 ```bash
@@ -175,27 +106,9 @@ spec:
       interval: 15s
 EOF
 ```
-
-### Phase 8: Deploy Test App & Generate Traffic
-```bash
-# Deploy Bookinfo
-kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
-kubectl wait --for=condition=ready pod -l app=productpage --timeout=90s
-
-# Configure Gateway
-kubectl apply -f samples/bookinfo/networking/bookinfo-gateway.yaml
-
-# Get Ingress Gateway address
-export INGRESS_HOST=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
-export INGRESS_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
-
-# Generate traffic
-for i in $(seq 1 50); do curl -s -o /dev/null "http://$INGRESS_HOST:$INGRESS_PORT/productpage"; done
-```
-
 ---
 
-### Phase 9: Access URLs, Paths, and Credentials
+### Phase 7: Access URLs, Paths, and Credentials
 *Run these in separate terminal windows to keep the tunnels open.*
 
 #### 1. Kiali (Service Mesh UI)
@@ -203,7 +116,6 @@ for i in $(seq 1 50); do curl -s -o /dev/null "http://$INGRESS_HOST:$INGRESS_POR
 kubectl port-forward -n istio-system svc/kiali 20001:20001
 ```
 - **URL:** `http://localhost:20001`
-- **User:** `admin` | **Password:** `admin`
 
 #### 2. Grafana (Metrics Dashboards)
 ```bash
@@ -218,23 +130,9 @@ kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 909
 ```
 - **URL:** `http://localhost:9090`
 - **Credentials:** None (Open)
-
-#### 4. Kibana (Logging UI)
-```bash
-kubectl port-forward -n logging svc/kibana-kibana 5601:5601
-```
-- **URL:** `http://localhost:5601`
-- **Credentials:** None (Security disabled)
-
 ---
 
 ### Phase 10: Post-Install UI Configurations
-
-#### Configure Kibana (Logs)
-1. Go to `http://localhost:5601` → **Management → Stack Management → Kibana → Data Views**.
-2. Click **Create data view**.
-3. **Name:** `filebeat-*` | **Timestamp field:** `@timestamp`.
-4. Save → Go to **Analytics → Discover** to view logs.
 
 #### Configure Grafana (Istio Dashboards)
 1. Go to `http://localhost:3000` → **Dashboards → New → Import**.
@@ -255,17 +153,7 @@ Cleanup guide to completely uninstall and remove all traces of the setup.
 
 Run these in order to avoid dependency errors.
 
-### 1. Remove Sample Apps & Custom Resources
-```bash
-# Remove Bookinfo (if deployed)
-kubectl delete -f samples/bookinfo/networking/bookinfo-gateway.yaml --ignore-not-found
-kubectl delete -f samples/bookinfo/platform/kube/bookinfo.yaml --ignore-not-found
-
-# Remove custom Istio ServiceMonitors/PodMonitors
-kubectl delete servicemonitors,podmonitors -n istio-system --all --ignore-not-found
-```
-
-### 2. Uninstall Helm Releases (ELK & Monitoring)
+### 1. Uninstall Helm Releases (ELK & Monitoring)
 ```bash
 # Uninstall ELK stack
 helm uninstall elasticsearch -n logging
@@ -287,7 +175,7 @@ istioctl uninstall --purge -y
 
 ### 4. Delete Namespaces (Cleans up lingering pods, configs, and PVCs)
 ```bash
-kubectl delete ns istio-system monitoring logging
+kubectl delete ns istio-system monitoring
 ```
 
 ### 5. Remove Sidecar Injection Labels
