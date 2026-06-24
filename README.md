@@ -37,7 +37,8 @@ kubectl get pod -n istio-system
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
-
+```
+```
 helm install monitoring prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
@@ -49,7 +50,8 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
 ```bash
 helm repo add kiali https://kiali.org/helm-charts
 helm repo update
-
+```
+```
 helm install kiali-server kiali/kiali-server -n istio-system \
   --set auth.strategy=login \
   --set login.username=admin \
@@ -62,7 +64,8 @@ helm install kiali-server kiali/kiali-server -n istio-system \
 ```bash
 helm repo add elastic https://helm.elastic.co
 helm repo update
-
+```
+```
 # Elasticsearch (Security disabled for simple setup)
 helm install elasticsearch elastic/elasticsearch -n logging \
   --set replicas=1 --set xpack.security.enabled=false
@@ -187,3 +190,61 @@ kubectl port-forward -n logging svc/kibana-kibana 5601:5601
 1. **Prometheus** (`http://localhost:9090`) → **Status → Targets** → Ensure `istiod` and `istio-proxies` are **UP**.
 2. **Kiali** (`http://localhost:20001`) → **Graph** → Select `default` namespace → See mesh topology.
 3. **Grafana** → Check imported Istio dashboards show traffic data.
+
+---
+# Uninstallation
+Cleanup guide to completely uninstall and remove all traces of the setup. 
+
+Run these in order to avoid dependency errors.
+
+### 1. Remove Sample Apps & Custom Resources
+```bash
+# Remove Bookinfo (if deployed)
+kubectl delete -f samples/bookinfo/networking/bookinfo-gateway.yaml --ignore-not-found
+kubectl delete -f samples/bookinfo/platform/kube/bookinfo.yaml --ignore-not-found
+
+# Remove custom Istio ServiceMonitors/PodMonitors
+kubectl delete servicemonitors,podmonitors -n istio-system --all --ignore-not-found
+```
+
+### 2. Uninstall Helm Releases (ELK & Monitoring)
+```bash
+# Uninstall ELK stack
+helm uninstall elasticsearch -n logging
+helm uninstall kibana -n logging
+helm uninstall filebeat -n logging
+
+# Uninstall Prometheus/Grafana stack
+helm uninstall monitoring -n monitoring
+
+# Uninstall Kiali
+helm uninstall kiali-server -n istio-system
+```
+
+### 3. Uninstall Istio Control & Data Plane
+```bash
+# Purge removes all Istio components, gateways, and CRDs
+istioctl uninstall --purge -y
+```
+
+### 4. Delete Namespaces (Cleans up lingering pods, configs, and PVCs)
+```bash
+kubectl delete ns istio-system monitoring logging
+```
+
+### 5. Remove Sidecar Injection Labels
+```bash
+# Remove from default namespace (add others if you labeled them)
+kubectl label namespace default istio-injection-
+```
+
+### 6. Clean Up Local Files & CLIs (Optional)
+```bash
+# Remove downloaded Istio directory and istioctl binary
+rm -rf ~/istio-*
+
+# Remove Helm binary (if you want to completely remove it)
+sudo rm /usr/local/bin/helm
+```
+
+**Note on Storage:** Deleting the namespaces in Step 4 will automatically delete the Persistent Volume Claims (PVCs) for Elasticsearch and Prometheus. If you are using a local provisioner (like `hostpath`), you may need to manually delete the leftover folders on your node's disk (usually in `/var/lib/...` or `/opt/local-path-provisioner/...`).
