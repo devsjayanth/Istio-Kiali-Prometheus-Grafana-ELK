@@ -109,28 +109,29 @@ kubectl label --overwrite namespace local-path-storage \
   pod-security.kubernetes.io/audit=privileged
 ```
 
-Elasticsearch
+#### Elasticsearch
+* Elasticsearch (Security disabled for simple setup)
+* (Replace <YOUR_STORAGE_CLASS_NAME> with the name from kubectl get sc, or local-path if you installed the provisioner above).
 ```
-# Elasticsearch (Security disabled for simple setup)
-#(Replace <YOUR_STORAGE_CLASS_NAME> with the name from kubectl get sc, or local-path if you installed the provisioner above).
+
 helm install elasticsearch elastic/elasticsearch -n logging \
   --set replicas=1 \
   --set xpack.security.enabled=false \
   --set sysctlInit.enabled=false \
   --set volumeClaimTemplate.storageClassName="<YOUR_STORAGE_CLASS_NAME>"
 ```
-Kibana
+#### Kibana
 ```
 # Kibana
 helm install kibana elastic/kibana -n logging
 ```
-Filebeat
+#### Filebeat
 ```
 # Filebeat (Log shipper)
 helm install filebeat elastic/filebeat -n logging
 ```
+Verify running
 ```
-# Verify running
 kubectl get pod -n logging
 ```
 
