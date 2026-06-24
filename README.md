@@ -44,6 +44,9 @@ helm install monitoring prometheus-community/kube-prometheus-stack \
   --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
   --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
   --set grafana.service.type=ClusterIP
+
+# Verify running
+kubectl get pod -n monitoring
 ```
 
 ### Phase 5: Install Kiali
@@ -53,11 +56,12 @@ helm repo update
 ```
 ```
 helm install kiali-server kiali/kiali-server -n istio-system \
-  --set auth.strategy=login \
-  --set login.username=admin \
-  --set login.passphrase=admin \
+  --set auth.strategy=anonymous \
   --set external_services.prometheus.url=http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090 \
-  --set external_services.grafana.url=http://monitoring-grafana.monitoring.svc:80
+  --set external_services.grafana.external_url=http://monitoring-grafana.monitoring.svc:80
+
+# Verify Kiali is running
+kubectl get pod -n istio-system
 ```
 
 ### Phase 6: Install ELK Stack
@@ -75,6 +79,9 @@ helm install kibana elastic/kibana -n logging
 
 # Filebeat (Log shipper)
 helm install filebeat elastic/filebeat -n logging
+
+# Verify running
+kubectl get pod -n logging
 ```
 
 ### Phase 7: Connect Istio Metrics to External Prometheus
