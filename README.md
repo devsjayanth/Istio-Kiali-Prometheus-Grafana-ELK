@@ -72,15 +72,42 @@ kubectl get pod -n istio-system
 helm repo add elastic https://helm.elastic.co
 helm repo update
 ```
+1. Allow privileged pods in the logging namespace
+```
+kubectl label --overwrite namespace logging \
+  pod-security.kubernetes.io/enforce=privileged \
+  pod-security.kubernetes.io/warn=privileged \
+  pod-security.kubernetes.io/audit=privileged
+```
+Define a StorageClass and tell the Helm chart to use it.
+First, check if you have any storage classes:
+```
+kubectl get sc
+```
+* If you have one (e.g., standard, gp2, managed-premium), note its name.
+* If you have none (common in bare-metal/local clusters), you must install a storage provisioner. For a quick local fix, install the local-path-provisioner:
+```
+kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+
+#Verify
+kubectl get sc
+```
+Elasticsearch
 ```
 # Elasticsearch (Security disabled for simple setup)
 helm install elasticsearch elastic/elasticsearch -n logging \
-  --set replicas=1 --set xpack.security.enabled=false
+  --set replicas=1 \
+  --set xpack.security.enabled=false \
+  --set sysctlInit.enabled=false \
+  --set volumeClaimTemplate.storageClassName="<YOUR_STORAGE_CLASS_NAME>"
+#(Replace <YOUR_STORAGE_CLASS_NAME> with the name from kubectl get sc, or local-path if you installed the provisioner above).
 ```
+Kibana
 ```
 # Kibana
 helm install kibana elastic/kibana -n logging
 ```
+Filebeat
 ```
 # Filebeat (Log shipper)
 helm install filebeat elastic/filebeat -n logging
