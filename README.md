@@ -31,7 +31,7 @@ istioctl install --set profile=default -y
 kubectl label namespace default istio-injection=enabled
 
 # Verify ingress gateway is running
-kubectl wait --for=condition=ready pod -n istio-system -l istio=ingressgateway --timeout=90s
+kubectl get pod -n istio-system
 ```
 
 ### Phase 4: Install Kiali
