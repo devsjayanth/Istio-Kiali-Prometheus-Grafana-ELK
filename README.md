@@ -17,7 +17,9 @@ export PATH=$PWD/bin:$PATH
 
 ### Phase 2: Create Namespaces
 ```bash
-kubectl create ns istio-system monitoring logging
+kubectl create ns istio-system
+kubectl create ns monitoring
+kubectl create ns logging
 ```
 
 ### Phase 3: Install Istio Control Plane
