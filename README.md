@@ -88,6 +88,13 @@ alertmanager:
             requests:
               storage: 1Gi
 ```
+Label the monitoring namespace to allow privileged pods and hostPath volumes
+```
+kubectl label --overwrite ns monitoring \
+  pod-security.kubernetes.io/enforce=privileged \
+  pod-security.kubernetes.io/warn=privileged \
+  pod-security.kubernetes.io/audit=privileged
+```
 Then upgrade your release to apply the persistence and dashboards:
 ```bash
 helm upgrade monitoring prometheus-community/kube-prometheus-stack -n monitoring -f values.yaml \
